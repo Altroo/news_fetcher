@@ -83,3 +83,20 @@ Pour améliorer la robustesse, vous pouvez capturer des exceptions spécifiques 
 Vous pouvez ajouter des commentaires ou des docstrings plus détaillés pour faciliter la compréhension et la maintenance du code.
 6. **Modulariser éventuellement le code pour la testabilité :**
 En regroupant des fonctions dans des classes ou en utilisant des modules séparés (par exemple, un module pour l’API News, un autre pour l’API OpenRouter), il sera plus facile d’écrire des tests unitaires et d’évoluer le projet.
+
+## Améliorations possibles v2
+
+1. **Utiliser un backend Django :**  
+Associer l'application à un backend Django pour sauvegarder ces articles dans une base de données.
+
+2. **Utiliser un script spécifique pour le scraping :**  
+Créer un script dédié pour scraper ces articles et les enregistrer dans la base de données, en le configurant pour s'exécuter via une commande line Django.
+
+3. **Utiliser .filter directement sur la base de données :**  
+Appliquer le filtre des thèmes, par exemple, directement sur les articles sauvegardés.
+
+4. **Utiliser Celery :**  
+Intégrer Celery avec le backend Django pour exécuter les tâches de résumé de manière asynchrone avec un modèle d'IA.
+
+5. **Définir comment obtenir le résultat :**  
+Envoyer automatiquement le résultat du résumé par email ou l'enregistrer dans une table dédiée.
