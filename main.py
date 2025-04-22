@@ -1,123 +1,157 @@
-import requests
-import json
+"""
+News Fetcher
 
-# === Configuration Section ===
-# Replace with your actual News API key from your preferred news provider.
-NEWS_API_KEY = "YOUR_NEWS_API_KEY"
-NEWS_URL = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={NEWS_API_KEY}"
+This is the main entry point for the News Fetcher application.
+"""
+import argparse
+import asyncio
+import logging
+import sys
+from typing import List, Optional
 
-# Replace with your actual OpenRouter API key and endpoint details.
-OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY"
-# Replace YOUR_ENGINE_ID with the engine/model ID you wish to use.
-OPENROUTER_URL = "https://api.openrouter.ai/v1/engines/YOUR_ENGINE_ID/completions"
+from news_fetcher.app import news_fetcher
+from news_fetcher.config.settings import config
+from news_fetcher.utils.logging_config import configure_logging, get_logger
+from news_fetcher.utils.async_utils import wait_for_background_task
 
-# Filter themes: adjust these themes as needed.
-THEMES = ["technology", "health", "finance"]
+# Configure logging
+configure_logging(log_level=logging.INFO)
+
+# Get logger
+logger = get_logger("main")
 
 
-# === Functions ===
-def fetch_news():
+def parse_args() -> argparse.Namespace:
     """
-    Fetches news items from the specified news API.
+    Parse command-line arguments.
+
+    Returns:
+        Parsed arguments.
     """
+    parser = argparse.ArgumentParser(description="News Fetcher - Fetch, filter, and summarize news articles")
+
+    # Mode of operation
+    parser.add_argument(
+        "--async", 
+        action="store_true", 
+        dest="async_mode",
+        help="Run in asynchronous mode"
+    )
+    parser.add_argument(
+        "--background", 
+        action="store_true", 
+        help="Run in background mode"
+    )
+
+    # Configuration options
+    parser.add_argument(
+        "--themes", 
+        type=str, 
+        help="Comma-separated list of themes to filter by (overrides config)"
+    )
+    parser.add_argument(
+        "--output", 
+        type=str, 
+        help="Output file for summaries (overrides config)"
+    )
+    parser.add_argument(
+        "--country", 
+        type=str, 
+        default="us",
+        help="Country code for news articles (default: us)"
+    )
+
+    # Logging options
+    parser.add_argument(
+        "--debug", 
+        action="store_true", 
+        help="Enable debug logging"
+    )
+    parser.add_argument(
+        "--log-file", 
+        type=str, 
+        help="Log file path"
+    )
+
+    return parser.parse_args()
+
+
+def apply_args(args: argparse.Namespace) -> None:
+    """
+    Apply command-line arguments to configuration.
+
+    Args:
+        args: Parsed command-line arguments.
+    """
+    # Apply themes if provided
+    if args.themes:
+        config.THEMES = args.themes.split(",")
+
+    # Apply output file if provided
+    if args.output:
+        config.OUTPUT_FILE = args.output
+
+    # Configure logging based on arguments
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    configure_logging(log_level=log_level, log_file=args.log_file)
+
+
+async def run_async() -> None:
+    """Run the application in asynchronous mode."""
+    logger.info("Running in asynchronous mode")
+    future = news_fetcher.run_async()
+    articles, summaries = await future
+    logger.info(f"Processed {len(articles)} articles and generated {len(summaries)} summaries")
+
+
+def run_sync() -> None:
+    """Run the application in synchronous mode."""
+    logger.info("Running in synchronous mode")
+    articles, summaries = news_fetcher.run()
+    logger.info(f"Processed {len(articles)} articles and generated {len(summaries)} summaries")
+
+
+def run_background() -> None:
+    """Run the application in background mode."""
+    logger.info("Running in background mode")
+    task_id = news_fetcher.run_background()
+    logger.info(f"Background task started with ID: {task_id}")
+
     try:
-        response = requests.get(NEWS_URL)
-        response.raise_for_status()
-        data = response.json()
-        articles = data.get("articles", [])
-        return articles
-    except Exception as e:
-        print("Error fetching news:", e)
-        return []
-
-
-def filter_news_by_theme(articles, themes):
-    """
-    Filters the list of articles, keeping only those that mention any of the themes.
-    """
-    filtered = []
-    for article in articles:
-        title = article.get("title", "").lower()
-        description = article.get("description", "").lower()
-        content = article.get("content", "").lower()
-        for theme in themes:
-            if theme.lower() in title or theme.lower() in description or theme.lower() in content:
-                filtered.append(article)
-                break
-    return filtered
-
-
-def summarize_article(article_text):
-    """
-    Sends the article text to the OpenRouter model to get an abstract (summary).
-    """
-    # Prepare the prompt for summarization.
-    prompt = f"Summarize the following article:\n\n{article_text}"
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}"
-    }
-
-    # Adjust parameters such as max_tokens and temperature per your needs.
-    data = {
-        "prompt": prompt,
-        "max_tokens": 150,
-        "temperature": 0.5
-    }
-
-    try:
-        response = requests.post(OPENROUTER_URL, headers=headers, json=data)
-        response.raise_for_status()
-        result = response.json()
-        # Assumes the API returns a structure with choices containing the summary text.
-        summary = result.get("choices", [{}])[0].get("text", "").strip()
-        return summary
-    except Exception as e:
-        print("Error summarizing article:", e)
-        return "Summary not available."
-
-
-def save_output(summaries, filename="news_summaries.txt"):
-    """
-    Saves the list of summaries to a file.
-    """
-    try:
-        with open(filename, "w", encoding="utf-8") as f:
-            for summary in summaries:
-                f.write(summary + "\n\n")
-        print(f"Summaries successfully saved to {filename}.")
-    except Exception as e:
-        print("Error saving output:", e)
-
-
-def main():
-    # Step 1: Fetch news articles.
-    articles = fetch_news()
-    if not articles:
-        print("No articles fetched.")
-        return
-
-    # Step 2: Filter articles according to the desired themes.
-    filtered_articles = filter_news_by_theme(articles, THEMES)
-    if not filtered_articles:
-        print("No articles match the specified themes.")
-        return
-
-    # Step 3: Summarize each filtered article.
-    summaries = []
-    for article in filtered_articles:
-        # Prefer full content if available; otherwise, use the description.
-        article_text = article.get("content") or article.get("description") or ""
-        if article_text:
-            summary = summarize_article(article_text)
+        # Wait for the task to complete
+        result = wait_for_background_task(task_id)
+        if result["status"] == "completed":
+            articles, summaries = result["result"]
+            logger.info(f"Processed {len(articles)} articles and generated {len(summaries)} summaries")
         else:
-            summary = "No content available."
-        formatted = f"Title: {article.get('title', 'No title')}\nSummary: {summary}"
-        summaries.append(formatted)
+            logger.error(f"Background task failed: {result['error']}")
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user. Task continues in the background.")
+        sys.exit(0)
 
-    # Step 4: Save the summaries to a file.
-    save_output(summaries)
+
+def main() -> None:
+    """Main entry point for the application."""
+    # Parse command-line arguments
+    args = parse_args()
+
+    # Apply arguments to configuration
+    apply_args(args)
+
+    try:
+        # Run in the appropriate mode
+        if args.background:
+            run_background()
+        elif args.async_mode:
+            asyncio.run(run_async())
+        else:
+            run_sync()
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Error running application: {str(e)}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

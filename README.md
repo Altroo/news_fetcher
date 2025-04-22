@@ -1,6 +1,6 @@
 # News Fetcher
 
-Ce projet est une application Python qui récupère des articles de news depuis une API, filtre les articles par thème et génère un résumé pour chacun d'eux en utilisant une API de résumé de texte. Les résumés sont ensuite sauvegardés dans un fichier.
+Ce projet est une application Python qui récupère des articles de news depuis une API, filtre les articles par thème et génère un résumé pour chacun d'eux en utilisant une API de résumé de texte. Les résumés sont ensuite sauvegardés dans un fichier et une base de données.
 
 ## Table des matières
 
@@ -9,18 +9,25 @@ Ce projet est une application Python qui récupère des articles de news depuis 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Utilisation](#utilisation)
+- [Améliorations implémentées](#améliorations-implémentées)
 
 ## Fonctionnalités
 
 - **Récupération des actualités** : Utilisation d'une API de news pour obtenir les dernières actualités.
 - **Filtrage par thème** : Filtrage des articles pour ne garder que ceux correspondant à des thèmes prédéfinis (par exemple, technologie, santé, finance).
 - **Résumé d'articles** : Génération d'un résumé pour chaque article filtré à l'aide d'une API de résumé.
-- **Sauvegarde des résultats** : Enregistrement des résumés dans un fichier texte.
+- **Sauvegarde des résultats** : Enregistrement des résumés dans un fichier texte et une base de données.
+- **Modes d'exécution multiples** : Support des modes synchrone, asynchrone et en arrière-plan.
+- **Interface en ligne de commande** : Contrôle de l'application via des arguments en ligne de commande.
 
 ## Prérequis
 
 - Python 3.7 ou plus récent
-- Bibliothèque `requests`
+- Bibliothèques requises (voir `requirements.txt`):
+  - `requests`
+  - `python-dotenv`
+  - `aiohttp` (pour les fonctionnalités asynchrones)
+  - `SQLAlchemy` (pour l'intégration de la base de données)
 
 ## Installation
 
@@ -42,59 +49,97 @@ Ce projet est une application Python qui récupère des articles de news depuis 
 3. Installez les dépendances :
 
    ```bash
-   pip install requests
+   pip install -r requirements.txt
    ```
 
 ## Configuration
 
 Avant d'exécuter l'application, configurez vos clés API et autres paramètres :
 
-- Définissez les variables d'environnement suivantes :
-  - `NEWS_API_KEY` : Votre clé API pour l'API de news.
-  - `OPENROUTER_API_KEY` : Votre clé API pour le service de résumé.
-  - `OPENROUTER_URL` (optionnel) : L'URL de l'API de résumé si différente de la valeur par défaut.
+1. Copiez le fichier `.env.example` en `.env` :
+   ```bash
+   cp .env.example .env
+   ```
 
-Vous pouvez également modifier directement les valeurs par défaut dans le fichier `main.py`, mais il est recommandé d'utiliser les variables d'environnement pour des raisons de sécurité.
+2. Modifiez le fichier `.env` avec vos propres valeurs :
+   - `NEWS_API_KEY` : Votre clé API pour l'API de news.
+   - `OPENROUTER_API_KEY` : Votre clé API pour le service de résumé.
+   - `OPENROUTER_URL` : L'URL de l'API de résumé.
+   - `OPENROUTER_ENGINE_ID` : L'ID du modèle à utiliser pour la génération de résumés.
+   - `DB_URL` : L'URL de connexion à la base de données.
+   - `OUTPUT_FILE` : Le chemin du fichier de sortie pour les résumés.
+   - `THEMES` : Liste des thèmes à filtrer, séparés par des virgules.
+
+L'application utilise `python-dotenv` pour charger automatiquement ces variables d'environnement.
 
 ## Utilisation
 
-Pour lancer l'application, exécutez simplement le fichier principal :
+Pour lancer l'application, exécutez le fichier principal avec les options souhaitées :
+
+```bash
+python main.py [options]
+```
+
+Options disponibles :
+- `--async` : Exécute l'application en mode asynchrone
+- `--background` : Exécute l'application en arrière-plan
+- `--themes THEMES` : Liste de thèmes séparés par des virgules (remplace la configuration)
+- `--output OUTPUT` : Fichier de sortie pour les résumés (remplace la configuration)
+- `--country COUNTRY` : Code pays pour les articles (par défaut: us)
+- `--debug` : Active les logs de débogage
+- `--log-file LOG_FILE` : Chemin du fichier de log
+
 L'application suivra les étapes suivantes :
 
 1. Récupération des articles via l'API de news.
 2. Filtrage des articles selon les thèmes définis.
-3. Génération d'un résumé pour chaque article filtré.
-4. Sauvegarde des résumés dans le fichier `news_summaries.txt`.
+3. Sauvegarde des articles dans la base de données.
+4. Génération d'un résumé pour chaque article filtré.
+5. Sauvegarde des résumés dans la base de données.
+6. Sauvegarde des résumés dans le fichier de sortie configuré.
 
-## Améliorations possibles
+## Améliorations implémentées
 
-Voici quelques suggestions pour améliorer le fichier :
-1. **Utiliser des variables d'environnement pour les clés API :**
-Plutôt que de coder en dur vos clés API dans le code, il est préférable de les charger depuis des variables d'environnement. Cela renforce la sécurité et facilite la configuration dans différents environnements.
-2. **Passer à l'utilisation du module logging :**
-Remplacer les appels à print par le module standard logging permet de mieux gérer le niveau de détail des messages (infos, avertissements, erreurs) et de rediriger la sortie vers un fichier si nécessaire.
-3. **Utiliser une session HTTP avec requests :**
-Lorsque vous effectuez plusieurs appels HTTP (ex. pour la récupération d'articles et la demande de résumé), l'utilisation de requests.Session peut améliorer les performances en réutilisant les connexions.
-4. **Gérer davantage d'exceptions spécifiques :**
-Pour améliorer la robustesse, vous pouvez capturer des exceptions spécifiques (par exemple, requests.exceptions.HTTPError ou requests.exceptions.ConnectionError) au lieu d'une Exception générale.
-5. **Clarifier et documenter certaines sections du code :**
-Vous pouvez ajouter des commentaires ou des docstrings plus détaillés pour faciliter la compréhension et la maintenance du code.
-6. **Modulariser éventuellement le code pour la testabilité :**
-En regroupant des fonctions dans des classes ou en utilisant des modules séparés (par exemple, un module pour l’API News, un autre pour l’API OpenRouter), il sera plus facile d’écrire des tests unitaires et d’évoluer le projet.
+Voici les améliorations qui ont été implémentées dans le projet :
 
-## Améliorations possibles v2
+1. **Restructuration du projet** :
+   - Organisation en package Python avec structure modulaire
+   - Séparation du code en modules logiques (api, models, utils, etc.)
+   - Création d'un module de configuration dédié
 
-1. **Utiliser un backend Django :**  
-Associer l'application à un backend Django pour sauvegarder ces articles dans une base de données.
+2. **Gestion de la configuration** :
+   - Chargement des variables d'environnement avec `python-dotenv`
+   - Création d'un fichier `.env.example` avec configuration d'exemple
+   - Classe de configuration pour gérer tous les paramètres
 
-2. **Utiliser un script spécifique pour le scraping :**  
-Créer un script dédié pour scraper ces articles et les enregistrer dans la base de données, en le configurant pour s'exécuter via une commande line Django.
+3. **Améliorations de l'intégration API** :
+   - Classes client dédiées pour chaque API externe
+   - Validation des réponses API
+   - Mécanisme de retry pour les requêtes API échouées
+   - Limitation du taux de requêtes
 
-3. **Utiliser .filter directement sur la base de données :**  
-Appliquer le filtre des thèmes, par exemple, directement sur les articles sauvegardés.
+4. **Intégration de base de données** :
+   - Base de données SQLite/PostgreSQL pour stocker articles et résumés
+   - Modèles de données pour articles et résumés
+   - Couche de persistance des données
 
-4. **Utiliser Celery :**  
-Intégrer Celery avec le backend Django pour exécuter les tâches de résumé de manière asynchrone avec un modèle d'IA.
+5. **Traitement asynchrone** :
+   - Implémentation des appels API asynchrones avec `aiohttp`
+   - Traitement des tâches en arrière-plan avec `ThreadPoolExecutor`
+   - Gestion des tâches asynchrones avec concurrence limitée
 
-5. **Définir comment obtenir le résultat :**  
-Envoyer automatiquement le résultat du résumé par email ou l'enregistrer dans une table dédiée.
+6. **Gestion des erreurs et journalisation** :
+   - Système de journalisation centralisé avec niveaux configurables
+   - Gestion spécifique des exceptions avec stratégies de récupération
+   - Mécanisme de retry pour les opérations sujettes à échec
+   - Journalisation dans la console et dans des fichiers
+
+7. **Qualité du code** :
+   - Annotations de type (type hints) dans tout le code
+   - Documentation détaillée avec docstrings au format standard
+   - Validation des entrées pour les fonctions principales
+
+8. **Interface en ligne de commande** :
+   - Arguments pour contrôler le mode d'exécution (synchrone, asynchrone, arrière-plan)
+   - Options de configuration via la ligne de commande
+   - Options de journalisation et de débogage
