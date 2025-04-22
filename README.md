@@ -9,8 +9,6 @@ Ce projet est une application Python qui récupère des articles de news depuis 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Utilisation](#utilisation)
-- [Structure du projet](#structure-du-projet)
-- [Auteurs et Licence](#auteurs-et-licence)
 
 ## Fonctionnalités
 
